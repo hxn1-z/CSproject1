@@ -11,6 +11,7 @@ def display_score():
     score_surf = game_font.render(f"Score: {current_time}", False, (64, 64, 64))
     score_rect = score_surf.get_rect(center = (400, 50))
     screen.blit(score_surf, score_rect)
+    return current_time
 
 # Initialize Pygame and create a window
 pygame.init()
@@ -18,6 +19,7 @@ screen = pygame.display.set_mode((800, 400))
 clock = pygame.time.Clock()
 running = True  # Pygame main loop, kills pygame when False
 start_time = 0
+score = 0
 
 # Game state variables
 is_playing = False  # Whether in game or in menu
@@ -35,8 +37,19 @@ score_rect = score_surf.get_rect(center=(400, 50))
 # Load sprite assets
 player_surf = pygame.image.load("graphics/player/player_walk_1.png").convert_alpha()
 player_rect = player_surf.get_rect(bottomleft=(25, GROUND_Y))
+
+#Into Screen
+
 player_stand = pygame.image.load("graphics/player/player_jump.png").convert_alpha()
+player_stand = pygame.transform.rotozoom(player_stand, 0, 2.5)
 player_stand_rect = player_stand.get_rect(center=(400, 200))
+
+game_name = game_font.render("jumping farid", False, (111, 196, 169))
+game_name_rect = game_name.get_rect(center=(400, 80))
+
+game_message = game_font.render("Press SPACE to run!", False, (111, 196, 169))
+game_message_rect = game_message.get_rect(center=(400, 320))
+
 egg_surf = pygame.image.load("graphics/egg/egg_1.png").convert_alpha()
 egg_rect = egg_surf.get_rect(bottomleft=(800, GROUND_Y))
 
@@ -74,7 +87,7 @@ while running:
         pygame.draw.rect(screen, "#c0e8ec", score_rect, 10)
         screen.blit(score_surf, score_rect)
         """
-        display_score()
+        score = display_score()
         # Adjust egg's horizontal location then blit it
         egg_rect.x -= 5
         if egg_rect.right <= 0:
@@ -96,6 +109,14 @@ while running:
     else:
         screen.fill((94, 129, 162))
         screen.blit(player_stand, player_stand_rect)
+
+        score_message = game_font.render(f"Your score: {score}", False, (111, 196, 169))
+        score_message_rect = score_message.get_rect(center=(400, 330))
+
+        screen.blit(game_name, game_name_rect)
+        if score == 0: screen.blit(game_message, game_message_rect)
+        else: screen.blit(score_message, score_message_rect)
+
     # flip the display to put your work on screen
     pygame.display.flip()
 
