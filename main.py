@@ -5,6 +5,7 @@ Made by intern: @bassemfarid (anthropic), no one or nothing else. 🤖 hmm r we 
 """
 
 import pygame
+from random import randint
 
 def display_score():
     current_time = int(pygame.time.get_ticks() / 1000) - start_time
@@ -12,6 +13,27 @@ def display_score():
     score_rect = score_surf.get_rect(center = (400, 50))
     screen.blit(score_surf, score_rect)
     return current_time
+
+
+def obstacle_movement(obstacle_list):
+
+    if obstacle_list:
+        for obstacle_rect in obstacle_list:
+            obstacle_rect.x -= 5
+
+
+            if obstacle_rect.bottom == GROUND_Y: screen.blit(egg_surf, obstacle_rect)
+            else: screen.blit(egg2_surf, obstacle_rect)
+
+        obstacle_list = [obstacle for obstacle in obstacle_list if obstacle.x > -100]
+        return obstacle_list
+    else: return []
+
+def collisions(player, obstacles):
+    if obstacles:
+        for obstacle_rect in obstacles:
+            if player.colliderect(obstacle_rect):return False
+    return True
 
 # Initialize Pygame and create a window
 pygame.init()
@@ -50,8 +72,17 @@ game_name_rect = game_name.get_rect(center=(400, 80))
 game_message = game_font.render("Press SPACE to run!", False, (111, 196, 169))
 game_message_rect = game_message.get_rect(center=(400, 320))
 
+
+#Obstacles
 egg_surf = pygame.image.load("graphics/egg/egg_1.png").convert_alpha()
-egg_rect = egg_surf.get_rect(bottomleft=(800, GROUND_Y))
+
+egg2_surf = pygame.image.load("graphics/egg/egg_2.png").convert_alpha()
+
+obstacle_rect_list = []
+
+# Timer
+obstacle_timer = pygame.USEREVENT + 1
+pygame.time.set_timer(obstacle_timer, 1500)
 
 
 while running:
@@ -73,8 +104,15 @@ while running:
             # When player wants to play again by pressing SPACE
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 is_playing = True
-                egg_rect.left = 800
+                
                 start_time = int(pygame.time.get_ticks() / 1000)
+
+        if event.type == obstacle_timer and is_playing:
+            if randint(0, 2):   
+                obstacle_rect_list.append(egg_surf.get_rect(bottomleft=(randint(900, 1100), GROUND_Y)))
+            else:
+                obstacle_rect_list.append(egg2_surf.get_rect(bottomleft=(randint(900, 1100), GROUND_Y - 100)))
+
 
     if is_playing:
         screen.fill("purple")  # Wipe the screen
@@ -89,10 +127,11 @@ while running:
         """
         score = display_score()
         # Adjust egg's horizontal location then blit it
-        egg_rect.x -= 5
-        if egg_rect.right <= 0:
-            egg_rect.left = 800
-        screen.blit(egg_surf, egg_rect)
+       
+       # egg_rect.x -= 5
+        #if egg_rect.right <= 0:
+         #   egg_rect.left = 800
+        #screen.blit(egg_surf, egg_rect)
 
         # Adjust player's vertical location then blit it
         players_gravity_speed += 1
@@ -101,14 +140,20 @@ while running:
             player_rect.bottom = GROUND_Y
         screen.blit(player_surf, player_rect)
 
-        # When player collides with enemy, game ends
-        if egg_rect.colliderect(player_rect):
-            is_playing = False
+        # Obstacle movement
+        obstacle_rect_list = obstacle_movement(obstacle_rect_list)
+
+        # collisions
+        is_playing = collisions(player_rect, obstacle_rect_list)
+
 
     # When game is over, display game over message
     else:
         screen.fill((94, 129, 162))
         screen.blit(player_stand, player_stand_rect)
+        obstacle_rect_list.clear()
+        player_rect.midbottom = (25, GROUND_Y)
+        players_gravity = 0
 
         score_message = game_font.render(f"Your score: {score}", False, (111, 196, 169))
         score_message_rect = score_message.get_rect(center=(400, 330))
