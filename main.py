@@ -18,7 +18,7 @@ def obstacle_movement(obstacle_list):
 
     if obstacle_list:
         for obstacle_rect in obstacle_list:
-            obstacle_rect.x -= 5
+            obstacle_rect.x -= 8
 
 
             if obstacle_rect.bottom == GROUND_Y: screen.blit(egg_surf, obstacle_rect)
@@ -49,8 +49,6 @@ def player_animation():
 
 
 
-
-
 # Initialize Pygame and create a window
 pygame.init()
 screen = pygame.display.set_mode((800, 400))
@@ -62,7 +60,7 @@ score = 0
 # Game state variables
 is_playing = False  # Whether in game or in menu
 GROUND_Y = 300  # The Y-coordinate of the ground level
-JUMP_GRAVITY_START_SPEED = -20  # The speed at which the player jumps
+JUMP_GRAVITY_START_SPEED = -24  # The speed at which the player jumps
 players_gravity_speed = 0  # The current speed at which the player falls
 
 # Load level assets
@@ -127,11 +125,11 @@ while running:
             # When player wants to play again by pressing SPACE
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 is_playing = True
-                
+
                 start_time = int(pygame.time.get_ticks() / 1000)
 
         if event.type == obstacle_timer and is_playing:
-            if randint(0, 2):   
+            if randint(0, 2):
                 obstacle_rect_list.append(egg_surf.get_rect(bottomleft=(randint(900, 1100), GROUND_Y)))
             else:
                 obstacle_rect_list.append(egg2_surf.get_rect(bottomleft=(randint(900, 1100), GROUND_Y - 100)))
@@ -150,14 +148,14 @@ while running:
         """
         score = display_score()
         # Adjust egg's horizontal location then blit it
-       
+
        # egg_rect.x -= 5
         #if egg_rect.right <= 0:
          #   egg_rect.left = 800
         #screen.blit(egg_surf, egg_rect)
 
         # Player movement
-        players_gravity_speed += 1
+        players_gravity_speed += 1.5
         player_rect.y += players_gravity_speed
         if player_rect.bottom > GROUND_Y:
             player_rect.bottom = GROUND_Y
