@@ -18,11 +18,11 @@ def obstacle_movement(obstacle_list):
 
     if obstacle_list:
         for obstacle_rect in obstacle_list:
-            obstacle_rect.x -= 8
+            obstacle_rect.x -= 7
 
 
             if obstacle_rect.bottom == GROUND_Y: screen.blit(egg_surf, obstacle_rect)
-            else: screen.blit(egg2_surf, obstacle_rect)
+            else: screen.blit(flyegg_surf, obstacle_rect)
 
         obstacle_list = [obstacle for obstacle in obstacle_list if obstacle.x > -100]
         return obstacle_list
@@ -51,6 +51,13 @@ def player_animation():
 
 # Initialize Pygame and create a window
 pygame.init()
+
+#music 
+pygame.mixer.init()
+pygame.mixer.music.load("graphics/sounds/candyland.mp3")
+pygame.mixer.music.play(-1)
+
+
 screen = pygame.display.set_mode((800, 400))
 clock = pygame.time.Clock()
 running = True  # Pygame main loop, kills pygame when False
@@ -60,7 +67,7 @@ score = 0
 # Game state variables
 is_playing = False  # Whether in game or in menu
 GROUND_Y = 300  # The Y-coordinate of the ground level
-JUMP_GRAVITY_START_SPEED = -24  # The speed at which the player jumps
+JUMP_GRAVITY_START_SPEED = -22  # The speed at which the player jumps
 players_gravity_speed = 0  # The current speed at which the player falls
 
 # Load level assets
@@ -95,15 +102,32 @@ game_message_rect = game_message.get_rect(center=(400, 320))
 
 
 #Obstacles
-egg_surf = pygame.image.load("graphics/egg/egg_1.png").convert_alpha()
+# Egg
+egg_frame_1 = pygame.image.load("graphics/egg/egg_1.png").convert_alpha()
+egg_frame_2 = pygame.image.load("graphics/egg/egg_2.png").convert_alpha()
+egg_frames = [egg_frame_1, egg_frame_2]
+egg_frame_index = 0
+egg_surf = egg_frames[egg_frame_index]
 
-egg2_surf = pygame.image.load("graphics/egg/egg_2.png").convert_alpha()
+# Flying Egg
+flyegg_frame_1 = pygame.image.load("graphics/flyingegg/flyegg1.png").convert_alpha()
+flyegg_frame_2 = pygame.image.load("graphics/flyingegg/flyegg2.png").convert_alpha()
+flyegg_frames = [flyegg_frame_1, flyegg_frame_2]
+flyegg_frame_index = 0
+flyegg_surf = flyegg_frames[flyegg_frame_index]
+
 
 obstacle_rect_list = []
 
 # Timer
 obstacle_timer = pygame.USEREVENT + 1
 pygame.time.set_timer(obstacle_timer, 1500)
+
+egg_animation_timer = pygame.USEREVENT + 2
+pygame.time.set_timer(egg_animation_timer, 500)
+
+flyegg_animation_timer = pygame.USEREVENT + 3
+pygame.time.set_timer(flyegg_animation_timer, 200)
 
 
 while running:
@@ -127,13 +151,22 @@ while running:
                 is_playing = True
 
                 start_time = int(pygame.time.get_ticks() / 1000)
+        if is_playing:
+            if event.type == obstacle_timer:
+                if randint(0, 2):
+                    obstacle_rect_list.append(egg_surf.get_rect(bottomleft=(randint(900, 1100), GROUND_Y)))
+                else:
+                    obstacle_rect_list.append(flyegg_surf.get_rect(bottomleft=(randint(900, 1100), GROUND_Y - 100)))
 
-        if event.type == obstacle_timer and is_playing:
-            if randint(0, 2):
-                obstacle_rect_list.append(egg_surf.get_rect(bottomleft=(randint(900, 1100), GROUND_Y)))
-            else:
-                obstacle_rect_list.append(egg2_surf.get_rect(bottomleft=(randint(900, 1100), GROUND_Y - 100)))
+            if event.type == egg_animation_timer:
+                if egg_frame_index == 0: egg_frame_index = 1
+                else: egg_frame_index = 0
+                egg_surf = egg_frames[egg_frame_index]
 
+            if event.type == flyegg_animation_timer:
+                if flyegg_frame_index == 0: flyegg_frame_index = 1
+                else: flyegg_frame_index = 0
+                flyegg_surf = flyegg_frames[flyegg_frame_index]
 
     if is_playing:
         screen.fill("purple")  # Wipe the screen
