@@ -73,7 +73,9 @@ players_gravity_speed = 0  # The current speed at which the player falls
 # Load level assets
 SKY_SURF = pygame.image.load("graphics/level/sky.png").convert()
 GROUND_SURF = pygame.image.load("graphics/level/ground.png").convert()
-game_font = pygame.font.Font(pygame.font.get_default_font(), 50)
+# loading new fonts, i am using verdana cuz its clean
+game_font = pygame.font.SysFont("Verdana", 50, bold=True)
+small_font = pygame.font.SysFont("Verdana", 32, bold=True)
 score_surf = game_font.render("SCORE?", False, "Black")
 score_rect = score_surf.get_rect(center=(400, 50))
 
@@ -97,8 +99,10 @@ player_stand_rect = player_stand.get_rect(center=(400, 200))
 game_name = game_font.render("jumping farid", False, (111, 196, 169))
 game_name_rect = game_name.get_rect(center=(400, 80))
 
-game_message = game_font.render("Press SPACE to run!", False, (111, 196, 169))
-game_message_rect = game_message.get_rect(center=(400, 320))
+# game_message = game_font.render("Press SPACE to run!", False, (111, 196, 169))
+# game_message_rect = game_message.get_rect(center=(400, 320))
+start_button_rect = pygame.Rect(0, 0, 230, 55)
+start_button_rect.center = (400, 330)
 
 
 #Obstacles
@@ -146,10 +150,14 @@ while running:
             ) and player_rect.bottom >= GROUND_Y:
                 players_gravity_speed = JUMP_GRAVITY_START_SPEED
         else:
-            # When player wants to play again by pressing SPACE
+            # press space or click start button to play
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 is_playing = True
-
+                pygame.mixer.music.stop()
+                start_time = int(pygame.time.get_ticks() / 1000)
+            elif event.type == pygame.MOUSEBUTTONDOWN and start_button_rect.collidepoint(event.pos):
+                is_playing = True
+                pygame.mixer.music.stop()
                 start_time = int(pygame.time.get_ticks() / 1000)
         if is_playing:
             if event.type == obstacle_timer:
@@ -198,8 +206,11 @@ while running:
         # Obstacle movement
         obstacle_rect_list = obstacle_movement(obstacle_rect_list)
 
-        # collisions
+        # collisions - if player got hit go back to menu and bring the music back
+        was_playing = is_playing
         is_playing = collisions(player_rect, obstacle_rect_list)
+        if was_playing and not is_playing:
+            pygame.mixer.music.play(-1)
 
 
     # When game is over, display game over message
@@ -210,12 +221,20 @@ while running:
         player_rect.midbottom = (25, GROUND_Y)
         players_gravity = 0
 
-        score_message = game_font.render(f"Your score: {score}", False, (111, 196, 169))
-        score_message_rect = score_message.get_rect(center=(400, 330))
-
         screen.blit(game_name, game_name_rect)
-        if score == 0: screen.blit(game_message, game_message_rect)
-        else: screen.blit(score_message, score_message_rect)
+
+        if score > 0:
+            score_message = small_font.render(f"Your score: {score}", False, (111, 196, 169))
+            score_message_rect = score_message.get_rect(center=(400, 285))
+            screen.blit(score_message, score_message_rect)
+
+        # blit start button says START first time, PLAY AGAIN after dying
+        button_label = "START" if score == 0 else "PLAY AGAIN"
+        pygame.draw.rect(screen, (111, 196, 169), start_button_rect, border_radius=10)
+        btn_text = small_font.render(button_label, False, "white")
+        screen.blit(btn_text, btn_text.get_rect(center=start_button_rect.center))
+        hint = small_font.render("or press SPACE", False, (160, 200, 190))
+        screen.blit(hint, hint.get_rect(center=(400, 375)))
 
     # flip the display to put your work on screen
     pygame.display.flip()
