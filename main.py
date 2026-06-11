@@ -82,6 +82,66 @@ def draw_shadow_text(surface, text, font, color, shadow_col, center):
     surface.blit(txt, txt.get_rect(center=center))
 
 
+def load_highscores():
+    try:
+        scores = []
+        with open("highscores.txt", "r") as f:
+            for line in f:
+                parts = line.strip().split(",")
+                if len(parts) == 2 and parts[1].isdigit():
+                    scores.append((parts[0], int(parts[1])))
+        return sorted(scores, key=lambda x: x[1], reverse=True)[:10]
+    except FileNotFoundError:
+        return []
+
+
+def save_highscores(scores):
+    with open("highscores.txt", "w") as f:
+        for name, s in scores:
+            f.write(f"{name},{s}\n")
+
+
+def update_highscores(name, new_score, scores):
+    if new_score > 0:
+        scores = sorted(scores + [(name, new_score)], key=lambda x: x[1], reverse=True)[:10]
+        save_highscores(scores)
+    return scores
+
+
+def draw_leaderboard(surface, scores):
+    draw_shadow_text(surface, "HIGH SCORES", small_font, (255, 215, 65), (0, 0, 0), (585, 118))
+    if not scores:
+        s = tiny_font.render("no scores yet", True, (160, 200, 190))
+        surface.blit(s, s.get_rect(center=(585, 175)))
+        return
+    for i, (name, sc) in enumerate(scores[:5]):
+        color = (255, 215, 65) if i == 0 else (200, 230, 215)
+        entry = tiny_font.render(f"{i + 1}.  {name}  -  {sc}", True, color)
+        surface.blit(entry, entry.get_rect(midleft=(415, 152 + i * 27)))
+
+
+def draw_name_entry(surface, name_input):
+    overlay = pygame.Surface((800, 400), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 160))
+    surface.blit(overlay, (0, 0))
+    px, py, pw, ph = 180, 108, 440, 178
+    panel = pygame.Surface((pw, ph), pygame.SRCALPHA)
+    panel.fill((10, 20, 50, 230))
+    surface.blit(panel, (px, py))
+    pygame.draw.rect(surface, (80, 200, 165), pygame.Rect(px, py, pw, ph), width=2)
+    pygame.draw.line(surface, (140, 255, 215), (px + 2, py + ph - 2), (px + 2, py + 2))
+    pygame.draw.line(surface, (140, 255, 215), (px + 2, py + 2), (px + pw - 2, py + 2))
+    draw_shadow_text(surface, "ENTER YOUR NAME", small_font, (255, 215, 65), (0, 0, 0), (400, 148))
+    box = pygame.Rect(210, 173, 380, 44)
+    pygame.draw.rect(surface, (25, 45, 75), box)
+    pygame.draw.rect(surface, (80, 200, 165), box, 2)
+    blink = pygame.time.get_ticks() % 900 < 450
+    txt = small_font.render(name_input + ("|" if blink else " "), True, (255, 255, 255))
+    surface.blit(txt, txt.get_rect(midleft=(box.x + 10, box.centery)))
+    hint = tiny_font.render("ENTER to confirm   |   ESC to cancel", True, (160, 200, 190))
+    surface.blit(hint, hint.get_rect(center=(400, 258)))
+
+
 # Initialize Pygame and create a window
 pygame.init()
 
@@ -100,6 +160,10 @@ clock = pygame.time.Clock()
 running = True  # Pygame main loop, kills pygame when False
 start_time = 0
 score = 0
+high_scores = load_highscores()
+player_name = ""
+name_input = ""
+is_entering_name = False
 
 # Game state variables
 is_playing = False  # Whether in game or in menu
@@ -167,8 +231,8 @@ game_name_rect = game_name.get_rect(center=(400, 80))
 
 # game_message = game_font.render("Press SPACE to run!", False, (111, 196, 169))
 # game_message_rect = game_message.get_rect(center=(400, 320))
-start_button_rect = pygame.Rect(0, 0, 230, 55)
-start_button_rect.center = (400, 320)
+start_button_rect = pygame.Rect(0, 0, 230, 44)
+start_button_rect.center = (400, 333)
 
 
 #Obstacles
@@ -255,16 +319,29 @@ while running:
                 is_ducking = True
             if event.type == pygame.KEYUP and event.key == pygame.K_DOWN:
                 is_ducking = False
+        elif is_entering_name:
+            if event.type == pygame.KEYDOWN:
+                if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER) and name_input:
+                    player_name = name_input
+                    name_input = ""
+                    is_entering_name = False
+                    is_playing = True
+                    pygame.mixer.music.load("graphics/sounds/ncs.mp3")
+                    pygame.mixer.music.play(-1)
+                    start_time = int(pygame.time.get_ticks() / 1000)
+                elif event.key == pygame.K_BACKSPACE:
+                    name_input = name_input[:-1]
+                elif event.key == pygame.K_ESCAPE:
+                    name_input = ""
+                    is_entering_name = False
+                elif len(name_input) < 12 and event.unicode.isalnum():
+                    name_input += event.unicode
         else:
-            # press space or click start button to play
+            # space or button click → open name entry screen
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                is_playing = True
-                pygame.mixer.music.stop()
-                start_time = int(pygame.time.get_ticks() / 1000)
+                is_entering_name = True
             elif event.type == pygame.MOUSEBUTTONDOWN and start_button_rect.collidepoint(screen_to_game(event.pos)):
-                is_playing = True
-                pygame.mixer.music.stop()
-                start_time = int(pygame.time.get_ticks() / 1000)
+                is_entering_name = True
         if is_playing:
             if event.type == obstacle_timer:
                 if randint(0, 2):
@@ -317,23 +394,15 @@ while running:
         was_playing = is_playing
         is_playing = collisions(player_rect, obstacle_rect_list)
         if was_playing and not is_playing:
+            pygame.mixer.music.load("graphics/sounds/candyland.mp3")
             pygame.mixer.music.play(-1)
+            high_scores = update_highscores(player_name, score, high_scores)
 
 
     # Menu / game over screen
     else:
-        # Use the game's own sky + ground as background
         game_surface.blit(SKY_SURF, (0, 0))
         game_surface.blit(GROUND_SURF, (0, GROUND_Y))
-
-        # Semi-transparent dark panel in the center
-        panel = pygame.Surface((460, 330), pygame.SRCALPHA)
-        panel.fill((10, 20, 50, 185))
-        game_surface.blit(panel, (170, 25))
-        pygame.draw.rect(game_surface, (80, 200, 165), pygame.Rect(170, 25, 460, 330), width=2)
-        # inner highlight on top and left edges for a subtle 3D feel
-        pygame.draw.line(game_surface, (140, 255, 215), (172, 353), (172, 27))
-        pygame.draw.line(game_surface, (140, 255, 215), (172, 27), (628, 27))
 
         # Reset player state
         obstacle_rect_list.clear()
@@ -342,37 +411,45 @@ while running:
         players_gravity_speed = 0
         is_ducking = False
 
-        # Player sprite
-        game_surface.blit(player_stand, player_stand_rect)
+        # Full-width panel (760x362, nearly the whole 800x400 canvas)
+        panel = pygame.Surface((760, 362), pygame.SRCALPHA)
+        panel.fill((10, 20, 50, 185))
+        game_surface.blit(panel, (20, 18))
+        pygame.draw.rect(game_surface, (80, 200, 165), pygame.Rect(20, 18, 760, 362), width=2)
+        pygame.draw.line(game_surface, (140, 255, 215), (22, 378), (22, 20))
+        pygame.draw.line(game_surface, (140, 255, 215), (22, 20), (778, 20))
 
-        # Title with drop shadow
-        shadow_surf = game_font.render("jumping farid", False, (0, 0, 0))
-        game_surface.blit(shadow_surf, shadow_surf.get_rect(center=(403, 83)))
-        game_surface.blit(game_name, game_name_rect)
+        # Title across full width
+        draw_shadow_text(game_surface, "jumping farid", game_font, (111, 196, 169), (0, 0, 0), (400, 55))
 
-        # Score (shown after first death)
+        # Dividers: below title | vertical column split | above bottom strip
+        pygame.draw.line(game_surface, (80, 200, 165), (35, 90), (765, 90), 1)
+        pygame.draw.line(game_surface, (80, 200, 165), (400, 94), (400, 298), 1)
+        pygame.draw.line(game_surface, (80, 200, 165), (35, 301), (765, 301), 1)
+
+        # Left column: player sprite + last score
+        game_surface.blit(player_stand, player_stand.get_rect(center=(215, 188)))
         if score > 0:
-            score_message = small_font.render(f"Your score: {score}", False, (255, 215, 65))
-            game_surface.blit(score_message, score_message.get_rect(center=(400, 238)))
+            draw_shadow_text(game_surface, f"Score: {score}", small_font, (255, 215, 65), (0, 0, 0), (215, 272))
 
+        # Right column: leaderboard
+        draw_leaderboard(game_surface, high_scores)
 
-        # Controls hint
-        c1 = tiny_font.render("SPACE / click = jump   |   DOWN = duck", False, (200, 230, 215))
-        game_surface.blit(c1, c1.get_rect(center=(400, 268 if score > 0 else 252)))
-
-        # Start/Play Again button — sharp with a dark shadow offset for depth
+        # Bottom strip: button + controls hint
+        start_button_rect.center = (400, 330)
         button_label = "START" if score == 0 else "PLAY AGAIN"
-        # draw shadow rect slightly offset down-right
         pygame.draw.rect(game_surface, (35, 110, 85), start_button_rect.move(4, 4))
-        # draw button face on top (moves down when hovered = "pressed" look)
         face_rect = start_button_rect.move(4, 4) if btn_hover else start_button_rect
         pygame.draw.rect(game_surface, (80, 200, 155) if btn_hover else (55, 160, 120), face_rect)
         pygame.draw.rect(game_surface, (80, 210, 165), face_rect, width=2)
         btn_text = small_font.render(button_label, False, "white")
         game_surface.blit(btn_text, btn_text.get_rect(center=face_rect.center))
+        hint = tiny_font.render("SPACE / click = jump   |   DOWN = duck   |   F11 = fullscreen", False, (160, 200, 190))
+        game_surface.blit(hint, hint.get_rect(center=(400, 366)))
 
-        hint = tiny_font.render("or press SPACE   |   F11 = fullscreen", False, (160, 200, 190))
-        game_surface.blit(hint, hint.get_rect(center=(400, 360)))
+        # Name entry overlay drawn last so it sits on top
+        if is_entering_name:
+            draw_name_entry(game_surface, name_input)
 
     # Scale game_surface to the actual window (letterboxed so fullscreen keeps aspect ratio)
     scale, ox, oy, nw, nh = get_letterbox()
